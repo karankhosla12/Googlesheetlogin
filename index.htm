@@ -1,158 +1,73 @@
 <!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Image Upload and Test Cases</title>
-    <style>
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            margin: 0;
-            background-color: #f4f4f4;
-        }
-        .container {
-            text-align: center;
-            background: #fff;
-            padding: 20px;
-            border-radius: 10px;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-            max-width: 500px;
-            width: 100%;
-        }
-        h1 {
-            margin-bottom: 20px;
-            color: #333;
-        }
-        input[type="file"] {
-            margin-bottom: 15px;
-        }
-        .test-cases {
-            text-align: left;
-            margin: 15px 0;
-        }
-        .test-cases label {
-            display: block;
-            margin-bottom: 5px;
-        }
-        button {
-            padding: 10px 20px;
-            background-color: #007bff;
-            color: #fff;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            transition: background-color 0.3s;
-        }
-        button:hover {
-            background-color: #0056b3;
-        }
-        #response {
-            margin-top: 20px;
-            padding: 10px;
-            border-radius: 6px;
-            background-color: #f1f8e9;
-            border: 1px solid #2e7d32;
-            font-size: 16px;
-            color: #2e7d32;
-            display: none;
-        }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <h1>Image Upload and Test Cases</h1>
-        <input type="file" id="imageInput" accept="image/*" />
-        <div class="test-cases">
-            <label><input type="checkbox" value="Are there any spelling mistakes?" /> Check for spellings</label>
-            <label><input type="checkbox" value="Is the (input:brand) visible?" /> Check for brand</label>
-            <label><input type="checkbox" value="What time is mentioned in the picture?" /> Check for time</label>
-            <label><input type="checkbox" value="What day is mentioned in the picture?" /> Check for day</label>
-            <label><input type="checkbox" value="Is this image understood correctly, describe it for me." /> Logical check</label>
-        </div>
-        <button onclick="processImage()">Submit</button>
-        <div id="response"></div>
-    </div>
-
+<html>
+  <head>
+    <title>Login Page</title>
     <script>
-        async function processImage() {
-            const input = document.getElementById("imageInput");
-            const responseDiv = document.getElementById("response");
-            const checkboxes = document.querySelectorAll(".test-cases input:checked");
+      // Function to check login status
+      document.addEventListener('DOMContentLoaded', function () {
+        const loginData = localStorage.getItem('loggedIn');
 
-            if (input.files.length === 0) {
-                responseDiv.textContent = "Please select an image to upload.";
-                responseDiv.style.color = "#d32f2f";
-                responseDiv.style.display = "block";
-                return;
-            }
+        if (loginData) {
+          const { timestamp } = JSON.parse(loginData);
+          const currentTime = new Date().getTime();
+          const timeElapsed = currentTime - timestamp;
 
-            const selectedCases = Array.from(checkboxes).map(cb => cb.value);
-
-            if (selectedCases.length === 0) {
-                responseDiv.textContent = "Please select at least one test case.";
-                responseDiv.style.color = "#d32f2f";
-                responseDiv.style.display = "block";
-                return;
-            }
-
-            const file = input.files[0];
-            responseDiv.textContent = "Processing...";
-            responseDiv.style.color = "#333";
-            responseDiv.style.display = "block";
-
-            try {
-                const reader = new FileReader();
-
-                reader.onload = async function () {
-                    const base64Image = reader.result.split(",")[1];
-
-                    const response = await fetch("https://api-inference.huggingface.co/v1/meta-llama/Llama-3.2-11B-Vision-Instruct", {
-                        method: "POST",
-                        headers: {
-                            Authorization: "Bearer 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",
-                            "Content-Type": "application/json",
-                        },
-                        body: JSON.stringify({
-                            model: "meta-llama/Llama-3.2-11B-Vision-Instruct",
-                            messages: [
-                                {
-                                    role: "user",
-                                    content: [
-                                        { type: "text", text: selectedCases.join("\n") },
-                                        {
-                                            type: "image_url",
-                                            image_url: { url: `data:image/png;base64,${base64Image}` },
-                                        },
-                                    ],
-                                },
-                            ],
-                            max_tokens: 500,
-                        }),
-                    });
-
-                    const result = await response.json();
-
-                    if (response.ok) {
-                        responseDiv.innerHTML = "<strong>Response:</strong> <ul>" +
-                            result.choices[0].message.content.split("\n").map(item => `<li>${item}</li>`).join("") +
-                            "</ul>";
-                        responseDiv.style.color = "#2e7d32";
-                    } else {
-                        responseDiv.textContent = "An error occurred: " + JSON.stringify(result);
-                        responseDiv.style.color = "#d32f2f";
-                    }
-                };
-
-                reader.readAsDataURL(file);
-            } catch (error) {
-                responseDiv.textContent = "An error occurred: " + error.message;
-                responseDiv.style.color = "#d32f2f";
-            }
+          // Check if the timestamp is older than 24 hours (86400000 milliseconds)
+          if (timeElapsed > 86400000) {
+            alert('Session expired. Please log in again.');
+            localStorage.removeItem('loggedIn');
+            document.getElementById('loginForm').style.display = 'block';
+          } else {
+            loadIframe();
+          }
+        } else {
+          document.getElementById('loginForm').style.display = 'block';
         }
+      });
+
+      // Handle login form submission
+      function login() {
+        const username = document.getElementById('username').value;
+        const password = document.getElementById('password').value;
+
+        google.script.run.withSuccessHandler(handleLoginResult).checkLogin(username, password);
+      }
+
+      // Handle the result from the server
+      function handleLoginResult(isLoggedIn) {
+        if (isLoggedIn) {
+          alert('Login successful!');
+          const timestamp = new Date().getTime(); // Current time in milliseconds
+          localStorage.setItem(
+            'loggedIn',
+            JSON.stringify({ status: true, timestamp })
+          ); // Store login status and timestamp
+          loadIframe();
+        } else {
+          alert('Incorrect username or password. Please try again.');
+        }
+      }
+
+      // Function to load the iframe
+      function loadIframe() {
+        document.body.innerHTML = ''; // Clear the page content
+        const iframe = document.createElement('iframe');
+        iframe.src = 'https://www.google.com';
+        iframe.style.width = '100vw';
+        iframe.style.height = '100vh';
+        iframe.style.border = 'none';
+        document.body.appendChild(iframe);
+      }
     </script>
-</body>
+  </head>
+  <body>
+    <div id="loginForm" style="display: none;">
+      <h2>Login</h2>
+      <label for="username">Username:</label>
+      <input type="text" id="username" required><br><br>
+      <label for="password">Password:</label>
+      <input type="password" id="password" required><br><br>
+      <button onclick="login()">Login</button>
+    </div>
+  </body>
 </html>
